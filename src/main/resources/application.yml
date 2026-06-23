@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: @project.artifactId@
+  config:
+    import: "optional:configtree:/run/secrets/"
+
+build:
+  version: @project.version@

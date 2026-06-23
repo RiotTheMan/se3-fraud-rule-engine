@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:15-alpine:///fraud_engine_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:9092}
+    consumer:
+      group-id: test-fraudEngineService
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: '*'
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.example.fraudengine.event.dto.TransactionCategorizedEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+kafka-listener-id: test-fraudEngineService
+kafka-listener-topics: test-transactions-categorized
+
+jwt-configuration:
+  read-role: FraudEngineRead
+  write-role: FraudEngineWrite
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

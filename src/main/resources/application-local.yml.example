@@ -1,0 +1,77 @@
+# application-local.yml.example
+# Copy this file to application-local.yml and fill in your values.
+# application-local.yml is gitignored and must NOT be committed.
+
+environment: local
+
+kafka-listener-id: ${environment}-fraudEngineService
+kafka-listener-topics: ${environment}-transactions-categorized
+
+jwt-configuration:
+  read-role: FraudEngineRead
+  write-role: FraudEngineWrite
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fraud_engine
+    username: your_db_user
+    password: your_db_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    backoff:
+      interval: 5000
+      max_failure: 3
+    consumer:
+      group-id: ${kafka-listener-id}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: '*'
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.example.fraudengine.event.dto.TransactionCategorizedEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # For local dev: generate an RSA keypair and point to the public key.
+          # The included local-jwt-public.pem matches the private key used by the
+          # provided docker-compose.yml smoke-test setup.
+          # To use a real Keycloak/OAuth2 issuer instead, replace with:
+          #   issuer-uri: http://localhost:8180/auth/realms/local
+          public-key-location: classpath:local-jwt-public.pem
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

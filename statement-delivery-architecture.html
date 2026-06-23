@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure File Statement Delivery — Solution Architecture</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #4f9cf9;
+      --accent2: #7c5cbf;
+      --accent3: #2ec4b6;
+      --accent4: #e76f51;
+      --green: #56c490;
+      --yellow: #f4d35e;
+      --red: #e84855;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --font: 'Segoe UI', system-ui, sans-serif;
+      --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0d1020 0%, #1a1d27 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 44px 64px 36px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(79,156,249,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(79,156,249,0.3);
+      border-radius: 4px;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      padding: 3px 10px; margin-bottom: 16px;
+    }
+    header h1 { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    header .subtitle { color: var(--muted); font-size: 15px; max-width: 800px; line-height: 1.7; }
+    .meta-row { margin-top: 20px; display: flex; gap: 32px; flex-wrap: wrap; }
+    .meta-item { font-size: 12px; color: var(--muted); }
+    .meta-item strong { color: var(--text); }
+
+    main { max-width: 1320px; margin: 0 auto; padding: 56px 64px; display: flex; flex-direction: column; gap: 56px; }
+
+    section { display: flex; flex-direction: column; gap: 20px; }
+
+    .section-label {
+      font-size: 10px; font-weight: 800; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--accent);
+      padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+
+    h3 { font-size: 16px; font-weight: 600; color: #fff; }
+    h4 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+    p  { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    code {
+      font-family: var(--mono); font-size: 11.5px;
+      background: rgba(255,255,255,0.08); padding: 1px 6px;
+      border-radius: 3px; color: var(--accent3);
+    }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 26px 28px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .card-sm { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
+
+    /* Pills */
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .p-blue   { background: rgba(79,156,249,0.15);  color: var(--accent); }
+    .p-purple { background: rgba(124,92,191,0.15);  color: #b39ddb; }
+    .p-teal   { background: rgba(46,196,182,0.15);  color: var(--accent3); }
+    .p-orange { background: rgba(231,111,81,0.15);  color: var(--accent4); }
+    .p-green  { background: rgba(86,196,144,0.15);  color: var(--green); }
+    .p-yellow { background: rgba(244,211,94,0.15);  color: var(--yellow); }
+    .p-red    { background: rgba(232,72,85,0.15);   color: var(--red); }
+    .p-dark   { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+    /* Callouts */
+    .callout { border-left: 3px solid; border-radius: 0 8px 8px 0; padding: 14px 18px; font-size: 13px; line-height: 1.65; }
+    .c-yellow { border-color: var(--yellow); background: rgba(244,211,94,0.05); }
+    .c-red    { border-color: var(--red);    background: rgba(232,72,85,0.05); }
+    .c-green  { border-color: var(--green);  background: rgba(86,196,144,0.05); }
+    .c-blue   { border-color: var(--accent); background: rgba(79,156,249,0.05); }
+    .c-purple { border-color: #7c5cbf;       background: rgba(124,92,191,0.05); }
+    .callout strong { color: #fff; }
+
+    /* Architecture block grid */
+    .arch {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .arch-row { display: grid; gap: 12px; }
+    .arch-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .arch-row-2 { grid-template-columns: 1fr 1fr; }
+    .arch-row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .arch-row-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      padding: 6px 0 4px; border-top: 1px dashed var(--border);
+    }
+    .arch-row-label:first-child { border-top: none; padding-top: 0; }
+
+    .blk {
+      border-radius: 8px; padding: 16px 18px;
+      border: 1px solid var(--border);
+    }
+    .blk .icon { font-size: 20px; margin-bottom: 8px; display: block; }
+    .blk h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .blk p  { font-size: 12px; }
+    .blk ul { margin-top: 8px; padding-left: 14px; }
+    .blk ul li { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+
+    .blk-blue   { background: rgba(79,156,249,0.06); border-color: rgba(79,156,249,0.25); }
+    .blk-purple { background: rgba(124,92,191,0.06); border-color: rgba(124,92,191,0.25); }
+    .blk-teal   { background: rgba(46,196,182,0.06); border-color: rgba(46,196,182,0.25); }
+    .blk-orange { background: rgba(231,111,81,0.06); border-color: rgba(231,111,81,0.25); }
+    .blk-green  { background: rgba(86,196,144,0.06); border-color: rgba(86,196,144,0.25); }
+    .blk-yellow { background: rgba(244,211,94,0.06); border-color: rgba(244,211,94,0.25); }
+    .blk-dark   { background: rgba(255,255,255,0.025); border-color: var(--border); }
+
+    /* Flow diagrams */
+    .flow {
+      display: flex; align-items: flex-start; flex-wrap: nowrap;
+      padding: 28px 24px; overflow-x: auto;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      gap: 0;
+    }
+    .fn {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; flex: 0 0 120px;
+    }
+    .fi {
+      width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 8px; border: 1px solid transparent;
+      flex-shrink: 0;
+    }
+    .fi-b { background: rgba(79,156,249,0.15);  border-color: rgba(79,156,249,0.3); }
+    .fi-p { background: rgba(124,92,191,0.15);  border-color: rgba(124,92,191,0.3); }
+    .fi-t { background: rgba(46,196,182,0.15);  border-color: rgba(46,196,182,0.3); }
+    .fi-o { background: rgba(231,111,81,0.15);  border-color: rgba(231,111,81,0.3); }
+    .fi-g { background: rgba(86,196,144,0.15);  border-color: rgba(86,196,144,0.3); }
+    .fi-y { background: rgba(244,211,94,0.15);  border-color: rgba(244,211,94,0.3); }
+    .fn-label { font-size: 12px; font-weight: 600; color: var(--text); }
+    .fn-sub   { font-size: 10.5px; color: var(--muted); margin-top: 3px; line-height: 1.4; max-width: 108px; }
+
+    .fa {
+      flex: 0 0 48px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding-top: 14px;
+    }
+    .fa-line {
+      height: 2px; width: 36px; background: var(--border); position: relative;
+    }
+    .fa-line::after {
+      content: ''; position: absolute; right: -1px; top: -4px;
+      border: 5px solid transparent; border-left-color: var(--border);
+    }
+    .fa-lbl { font-size: 9.5px; color: var(--muted); margin-top: 5px; white-space: nowrap; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; }
+    .step  { display: flex; gap: 20px; position: relative; }
+    .step:not(:last-child)::after {
+      content: ''; position: absolute; left: 19px; top: 42px; bottom: 0;
+      width: 2px; background: var(--border);
+    }
+    .sn {
+      flex: 0 0 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; position: relative; z-index: 1;
+    }
+    .sb { padding: 8px 0 28px; }
+    .sb h4 { font-size: 14px; font-weight: 600; color: #fff; }
+    .sb p  { font-size: 13px; margin-top: 4px; }
+
+    .s-b .sn { background: rgba(79,156,249,0.2);  color: var(--accent);  border: 1px solid rgba(79,156,249,0.4); }
+    .s-p .sn { background: rgba(124,92,191,0.2);  color: #b39ddb;        border: 1px solid rgba(124,92,191,0.4); }
+    .s-t .sn { background: rgba(46,196,182,0.2);  color: var(--accent3); border: 1px solid rgba(46,196,182,0.4); }
+    .s-o .sn { background: rgba(231,111,81,0.2);  color: var(--accent4); border: 1px solid rgba(231,111,81,0.4); }
+    .s-g .sn { background: rgba(86,196,144,0.2);  color: var(--green);   border: 1px solid rgba(86,196,144,0.4); }
+    .s-y .sn { background: rgba(244,211,94,0.2);  color: var(--yellow);  border: 1px solid rgba(244,211,94,0.4); }
+
+    /* Tables */
+    .tbl { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left; font-size: 10.5px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--muted); background: var(--surface2);
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+    }
+    td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+
+    /* Schema */
+    .schema-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .sc { background: #0d0f1b; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .sc-head { background: var(--surface2); padding: 10px 16px; font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent3); border-bottom: 1px solid var(--border); }
+    .sc-row { display: flex; align-items: baseline; gap: 10px; padding: 7px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); font-family: var(--mono); font-size: 11px; }
+    .sc-row:last-child { border-bottom: none; }
+    .sc-col  { color: var(--text); flex: 1; }
+    .sc-type { color: var(--muted); white-space: nowrap; font-size: 10px; }
+    .sc-pk   { color: var(--yellow); font-weight: 700; }
+    .sc-fk   { color: var(--accent); }
+    .sc-note { font-size: 10px; color: var(--muted); padding: 6px 16px 8px; font-style: italic; }
+
+    /* Code block */
+    .code-block { background: #0d0f1b; border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
+    .code-block pre { font-family: var(--mono); font-size: 12px; line-height: 1.75; color: #c8d3ea; padding: 20px 24px; margin: 0; }
+    .cmt { color: #4a5975; }
+    .kw  { color: #a78bfa; }
+    .str { color: #2ec4b6; }
+    .cls { color: #f4d35e; }
+    .ann { color: #4f9cf9; }
+    .num { color: #e76f51; }
+    .cfg { color: var(--green); }
+
+    /* Decision table */
+    .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    footer {
+      text-align: center; padding: 36px; color: var(--muted);
+      font-size: 12px; border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 900px) {
+      main { padding: 32px 24px; }
+      header { padding: 32px 24px; }
+      .arch-row-3, .arch-row-4 { grid-template-columns: 1fr 1fr; }
+      .decision-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Solution Architecture</div>
+  <h1>Secure File Statement Delivery</h1>
+  <p class="subtitle">
+    A system for storing customer account statements as PDF files and delivering
+    them via secure, time-limited download links. This document describes
+    the architecture, security model, data design, and implementation approach
+    — technology choices are given as recommendations, not mandates.
+  </p>
+  <div class="meta-row">
+    <div class="meta-item"><strong>Problem:</strong> Secure PDF storage + time-limited customer access</div>
+    <div class="meta-item"><strong>Core concerns:</strong> Confidentiality · Integrity · Non-repudiation · Availability</div>
+    <div class="meta-item"><strong>Recommended stack:</strong> Any REST framework · PostgreSQL · S3-compatible object store · Message queue</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ════════════════════════════ 1. PROBLEM FRAMING ════════════════════════ -->
+  <section>
+    <div class="section-label">1 — Problem Framing</div>
+
+    <div class="card-grid">
+      <div class="card-sm">
+        <h4>What we need to store</h4>
+        <p>Customer account statements as PDF files. These are sensitive financial documents — they must never be publicly readable, must not be accessible by other customers, and must remain available for the duration of their retention period.</p>
+      </div>
+      <div class="card-sm">
+        <h4>What we need to deliver</h4>
+        <p>A way to give a specific customer temporary access to their specific statement. The access must expire automatically, must not be reusable, and must be auditable — we need to know exactly who downloaded what and when.</p>
+      </div>
+      <div class="card-sm">
+        <h4>Why this is hard</h4>
+        <p>A direct file URL is permanent and shareable. Embedding auth tokens in URLs leaks them to browser history and server logs. Generating PDFs synchronously blocks the API. Without an audit log, you can't prove or disprove a claim that a statement was accessed.</p>
+      </div>
+      <div class="card-sm">
+        <h4>The central security insight</h4>
+        <p>Treat the download URL like a <strong style="color:#fff;">one-time password</strong>. It grants access to exactly one resource for a short window. After that window closes — or after it's used once — it's permanently void. No exceptions.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 2. HIGH-LEVEL ARCHITECTURE ═════════════════ -->
+  <section>
+    <div class="section-label">2 — High-Level Architecture</div>
+
+    <div class="arch">
+
+      <div class="arch-row-label">External Actors</div>
+      <div class="arch-row arch-row-3">
+        <div class="blk blk-dark" style="text-align:center;">
+          <span class="icon">🧑‍💼</span>
+          <h4>Customer</h4>
+          <p>Requests statements via a portal or mobile app. Clicks a link to download their PDF. Has no direct access to the file store.</p>
+        </div>
+        <div class="blk blk-dark" style="text-align:center;">
+          <span class="icon">⚙️</span>
+          <h4>Internal System / Scheduler</h4>
+          <p>Triggers statement generation (e.g. end-of-month batch job or event from the core banking system).</p>
+        </div>
+        <div class="blk blk-dark" style="text-align:center;">
+          <span class="icon">📧</span>
+          <h4>Notification Channel</h4>
+          <p>Email or SMS service that delivers the download link to the customer once the PDF is ready.</p>
+        </div>
+      </div>
+
+      <div class="arch-row-label">API &amp; Auth Layer</div>
+      <div class="arch-row arch-row-2">
+        <div class="blk blk-blue">
+          <span class="icon">🛡️</span>
+          <h4>Identity Provider (IdP)</h4>
+          <p>Issues signed JWT tokens to authenticated callers. The Statement Service validates every inbound request against this token.</p>
+          <ul>
+            <li>Any standard OAuth 2.0 / OIDC provider (Keycloak, Auth0, Cognito, etc.)</li>
+            <li>Role-based access: <code>StatementRead</code> and <code>StatementWrite</code></li>
+            <li>Download endpoint is token-gated differently — see section 4</li>
+          </ul>
+        </div>
+        <div class="blk blk-purple">
+          <span class="icon">📋</span>
+          <h4>Statement Service (API)</h4>
+          <p>The single backend service that owns the full statement lifecycle. Customers and internal systems only ever talk to this service.</p>
+          <ul>
+            <li>REST API on port 8080</li>
+            <li>Validates JWTs, enforces ownership, issues tokens</li>
+            <li>Never exposes S3 paths or credentials to callers</li>
+            <li>Publishes generation requests to the message queue</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arch-row-label">Async Processing</div>
+      <div class="arch-row arch-row-3">
+        <div class="blk blk-yellow">
+          <span class="icon">📨</span>
+          <h4>Message Queue</h4>
+          <p>Decouples PDF generation from the API request. The API publishes a job; the worker consumes it independently.</p>
+          <ul>
+            <li>Any durable queue: Kafka, RabbitMQ, SQS, etc.</li>
+            <li>At-least-once delivery — worker must be idempotent</li>
+            <li>Three event types: requested, generated, delivered</li>
+          </ul>
+        </div>
+        <div class="blk blk-orange">
+          <span class="icon">📄</span>
+          <h4>PDF Generator Worker</h4>
+          <p>Consumes generation jobs, fetches the customer's transaction data, renders the PDF, and uploads it to object storage.</p>
+          <ul>
+            <li>Can be a separate service or a worker thread in the same process</li>
+            <li>Must be idempotent — check if the PDF already exists before generating</li>
+            <li>Publishes a "generated" event on completion</li>
+          </ul>
+        </div>
+        <div class="blk blk-teal">
+          <span class="icon">🪣</span>
+          <h4>Object Storage</h4>
+          <p>Stores the PDF files. Entirely private — no public access policy. Customers never receive an S3 URL directly.</p>
+          <ul>
+            <li>AWS S3, GCS, Azure Blob, or self-hosted MinIO</li>
+            <li>Encryption at rest (SSE)</li>
+            <li>Retention lifecycle policy (e.g. archive after 7 years)</li>
+            <li>Path is an opaque UUID — not guessable</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arch-row-label">Data Layer</div>
+      <div class="arch-row arch-row-3">
+        <div class="blk blk-green">
+          <span class="icon">🗄️</span>
+          <h4>Relational Database</h4>
+          <p>Stores statement metadata, download tokens (as hashes), and the audit log. PostgreSQL recommended.</p>
+          <ul>
+            <li>Three tables: <code>statement_requests</code>, <code>download_tokens</code>, <code>audit_log</code></li>
+            <li>Schema managed by a migration tool (Flyway, Liquibase, etc.)</li>
+            <li>Tokens stored as SHA-256 hashes only — never the raw value</li>
+          </ul>
+        </div>
+        <div class="blk blk-dark">
+          <span class="icon">🔒</span>
+          <h4>Secrets Manager</h4>
+          <p>Stores credentials at runtime. The application reads them on startup — they are never in source code or config files.</p>
+          <ul>
+            <li>HashiCorp Vault, AWS Secrets Manager, or env vars in dev</li>
+            <li>Secrets: DB password, S3 credentials, SMTP password</li>
+          </ul>
+        </div>
+        <div class="blk blk-dark">
+          <span class="icon">📊</span>
+          <h4>Observability</h4>
+          <p>Health checks, structured logging, and metrics for the running service.</p>
+          <ul>
+            <li>Health endpoint: <code>/health</code></li>
+            <li>Structured JSON logs — never log raw tokens</li>
+            <li>Metrics: token issuance rate, download count, generation latency</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 3. END-TO-END FLOWS ═══════════════════════ -->
+  <section>
+    <div class="section-label">3 — End-to-End Flows</div>
+
+    <h3>Flow A — Statement is Generated (async)</h3>
+    <div class="flow">
+      <div class="fn">
+        <div class="fi fi-o">⚙️</div>
+        <div class="fn-label">Trigger</div>
+        <div class="fn-sub">Scheduler or event from core banking</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">POST /statements</div></div>
+      <div class="fn">
+        <div class="fi fi-p">📋</div>
+        <div class="fn-label">Statement API</div>
+        <div class="fn-sub">Validates JWT, saves request row with status REQUESTED</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">publish job</div></div>
+      <div class="fn">
+        <div class="fi fi-y">📨</div>
+        <div class="fn-label">Message Queue</div>
+        <div class="fn-sub">statement.requested topic / queue</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">consume</div></div>
+      <div class="fn">
+        <div class="fi fi-o">📄</div>
+        <div class="fn-label">PDF Worker</div>
+        <div class="fn-sub">Fetches transactions, renders PDF</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">upload</div></div>
+      <div class="fn">
+        <div class="fi fi-t">🪣</div>
+        <div class="fn-label">Object Storage</div>
+        <div class="fn-sub">PDF stored privately, opaque key</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">publish event</div></div>
+      <div class="fn">
+        <div class="fi fi-g">✅</div>
+        <div class="fn-label">Status Update</div>
+        <div class="fn-sub">Row updated to AVAILABLE. Notification sent.</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px;">Flow B — Customer Requests a Download Link</h3>
+    <div class="flow">
+      <div class="fn">
+        <div class="fi fi-b">🧑</div>
+        <div class="fn-label">Customer</div>
+        <div class="fn-sub">POST /statements/{id}/download-link</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">JWT bearer</div></div>
+      <div class="fn">
+        <div class="fi fi-p">🔐</div>
+        <div class="fn-label">Statement API</div>
+        <div class="fn-sub">Validate JWT, verify customer owns this statement</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">query DB</div></div>
+      <div class="fn">
+        <div class="fi fi-g">🗄️</div>
+        <div class="fn-label">Database</div>
+        <div class="fn-sub">Confirm status = AVAILABLE</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">generate + store hash</div></div>
+      <div class="fn">
+        <div class="fi fi-y">🎟️</div>
+        <div class="fn-label">Token Store</div>
+        <div class="fn-sub">SHA-256 hash saved, TTL 15 min, used = false</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">return URL</div></div>
+      <div class="fn">
+        <div class="fi fi-b">🔗</div>
+        <div class="fn-label">Download URL</div>
+        <div class="fn-sub">/statements/download?token=&lt;raw&gt;</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px;">Flow C — Customer Redeems the Link</h3>
+    <div class="flow">
+      <div class="fn">
+        <div class="fi fi-b">🧑</div>
+        <div class="fn-label">Browser</div>
+        <div class="fn-sub">GET /statements/download?token=…</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">raw token</div></div>
+      <div class="fn">
+        <div class="fi fi-p">🔎</div>
+        <div class="fn-label">Token Validator</div>
+        <div class="fn-sub">Hash token → DB lookup → check expiry + used flag</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">atomic update</div></div>
+      <div class="fn">
+        <div class="fi fi-y">🎟️</div>
+        <div class="fn-label">Token Table</div>
+        <div class="fn-sub">UPDATE used = true inside a transaction (single-use enforced)</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">fetch bytes</div></div>
+      <div class="fn">
+        <div class="fi fi-t">🪣</div>
+        <div class="fn-label">Object Storage</div>
+        <div class="fn-sub">Fetch PDF via internal presigned URL</div>
+      </div>
+      <div class="fa"><div class="fa-line"></div><div class="fa-lbl">stream + audit</div></div>
+      <div class="fn">
+        <div class="fi fi-g">📥</div>
+        <div class="fn-label">PDF Response</div>
+        <div class="fn-sub">Content-Type: application/pdf — download begins</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 4. TOKEN SECURITY ══════════════════════════ -->
+  <section>
+    <div class="section-label">4 — Token Security Design</div>
+
+    <div class="callout c-yellow" style="border-radius:8px;">
+      <strong>Why not a presigned S3 URL?</strong> Presigned S3 URLs work, but they embed the bucket name and object key — which reveals your storage layout and ties your security model to your storage provider. A service-issued token keeps all that knowledge inside your service and lets you add ownership checks, rate limiting, and audit logging that S3 can't provide.
+    </div>
+
+    <div class="steps" style="margin-top:16px;">
+      <div class="step s-b">
+        <div class="sn">1</div>
+        <div class="sb">
+          <h4>Generate a cryptographically random token</h4>
+          <p>Use a cryptographically secure random number generator (<code>SecureRandom</code> in Java, <code>secrets</code> module in Python, <code>crypto.randomBytes</code> in Node.js) to produce 32 bytes. Encode as URL-safe Base64. This gives you 256 bits of entropy — brute-force is computationally infeasible.</p>
+        </div>
+      </div>
+      <div class="step s-p">
+        <div class="sn">2</div>
+        <div class="sb">
+          <h4>Store only the SHA-256 hash</h4>
+          <p>Compute <code>SHA-256(rawToken)</code> and store that in the database. The raw token goes into the URL only. Even if someone dumps your database, they cannot reverse a SHA-256 hash to obtain a working token. This is the same principle behind secure password storage.</p>
+        </div>
+      </div>
+      <div class="step s-t">
+        <div class="sn">3</div>
+        <div class="sb">
+          <h4>Set a short expiry (TTL)</h4>
+          <p>Default: <strong style="color:#fff;">15 minutes</strong>. Long enough for a customer to click the link. Short enough that a leaked URL becomes worthless almost immediately. Store <code>expires_at</code> as an absolute timestamp, not a duration. Respond with <strong style="color:#fff;">HTTP 410 Gone</strong> (not 404) so the client knows the resource existed but the window has closed.</p>
+        </div>
+      </div>
+      <div class="step s-o">
+        <div class="sn">4</div>
+        <div class="sb">
+          <h4>Enforce single-use atomically</h4>
+          <p>Inside a single database transaction: check <code>used = false</code> AND <code>expires_at > now()</code>, then immediately set <code>used = true</code>. Both operations must be in the same transaction. If two requests arrive concurrently for the same token, one wins and the other gets a 410. No second chances.</p>
+        </div>
+      </div>
+      <div class="step s-g">
+        <div class="sn">5</div>
+        <div class="sb">
+          <h4>Never log the raw token</h4>
+          <p>Log the internal token row ID only (a database integer). The raw token must not appear in application logs, access logs, or error reports. If it does, treat it as a security incident. Browser history and server logs are considered untrusted surfaces.</p>
+        </div>
+      </div>
+      <div class="step s-y">
+        <div class="sn">6</div>
+        <div class="sb">
+          <h4>Limit active tokens per statement</h4>
+          <p>Allow at most 3 active (unused + unexpired) tokens per statement at any time. When a new token is requested, revoke the previous ones. This prevents an attacker from generating a large number of tokens to extend their effective access window. Log excess issuance attempts to the audit log.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:4px;">
+      <div class="callout c-red" style="border-radius:8px;"><strong>Do not:</strong> store the raw token in the DB, log it anywhere, use sequential IDs or UUIDs as tokens, expose the S3 object key in the URL, or serve the download endpoint from a CDN (CDNs cache by URL — a cached download means a reused token).</div>
+      <div class="callout c-green" style="border-radius:8px;"><strong>Do:</strong> use a CSPRNG, store hash only, enforce single-use atomically, keep TTL short, serve via HTTPS only, record every redemption attempt (successful or not) in the audit log with the client IP address.</div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 5. DATA MODEL ══════════════════════════════ -->
+  <section>
+    <div class="section-label">5 — Data Model</div>
+
+    <div class="callout c-blue" style="border-radius:8px; margin-bottom:4px;">
+      Three tables. Schema migrations should be managed by a versioned tool (Flyway, Liquibase, or equivalent) so that changes are tracked, reproducible, and reversible.
+    </div>
+
+    <div class="schema-grid">
+
+      <div class="sc">
+        <div class="sc-head">statement_requests</div>
+        <div class="sc-row"><span class="sc-col sc-pk">id</span><span class="sc-type">BIGINT AUTO PK</span></div>
+        <div class="sc-row"><span class="sc-col">statement_id</span><span class="sc-type">VARCHAR UNIQUE NN</span></div>
+        <div class="sc-row"><span class="sc-col sc-fk">customer_id</span><span class="sc-type">VARCHAR NN</span></div>
+        <div class="sc-row"><span class="sc-col">account_number</span><span class="sc-type">VARCHAR NN</span></div>
+        <div class="sc-row"><span class="sc-col">period_from</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-row"><span class="sc-col">period_to</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-row"><span class="sc-col">status</span><span class="sc-type">VARCHAR(20) NN</span></div>
+        <div class="sc-row"><span class="sc-col">storage_key</span><span class="sc-type">TEXT (opaque)</span></div>
+        <div class="sc-row"><span class="sc-col">file_size_bytes</span><span class="sc-type">BIGINT</span></div>
+        <div class="sc-row"><span class="sc-col">idempotency_key</span><span class="sc-type">VARCHAR UNIQUE NN</span></div>
+        <div class="sc-row"><span class="sc-col">created_at</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-row"><span class="sc-col">updated_at</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-note">Indexes: (customer_id, created_at DESC), (status)</div>
+      </div>
+
+      <div class="sc">
+        <div class="sc-head">download_tokens</div>
+        <div class="sc-row"><span class="sc-col sc-pk">id</span><span class="sc-type">BIGINT AUTO PK</span></div>
+        <div class="sc-row"><span class="sc-col">token_hash</span><span class="sc-type">CHAR(64) UNIQUE NN</span></div>
+        <div class="sc-row"><span class="sc-col sc-fk">statement_id</span><span class="sc-type">VARCHAR FK NN</span></div>
+        <div class="sc-row"><span class="sc-col">customer_id</span><span class="sc-type">VARCHAR NN</span></div>
+        <div class="sc-row"><span class="sc-col">expires_at</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-row"><span class="sc-col">used</span><span class="sc-type">BOOLEAN DEFAULT false</span></div>
+        <div class="sc-row"><span class="sc-col">used_at</span><span class="sc-type">TIMESTAMP</span></div>
+        <div class="sc-row"><span class="sc-col">created_at</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-note">Indexes: (statement_id, used, expires_at), (expires_at) for nightly purge job</div>
+      </div>
+
+      <div class="sc">
+        <div class="sc-head">audit_log</div>
+        <div class="sc-row"><span class="sc-col sc-pk">id</span><span class="sc-type">BIGINT AUTO PK</span></div>
+        <div class="sc-row"><span class="sc-col sc-fk">statement_id</span><span class="sc-type">VARCHAR NN</span></div>
+        <div class="sc-row"><span class="sc-col">customer_id</span><span class="sc-type">VARCHAR NN</span></div>
+        <div class="sc-row"><span class="sc-col">event_type</span><span class="sc-type">VARCHAR(40) NN</span></div>
+        <div class="sc-row"><span class="sc-col">performed_by</span><span class="sc-type">VARCHAR</span></div>
+        <div class="sc-row"><span class="sc-col">ip_address</span><span class="sc-type">VARCHAR</span></div>
+        <div class="sc-row"><span class="sc-col">channel</span><span class="sc-type">VARCHAR(20)</span></div>
+        <div class="sc-row"><span class="sc-col">detail</span><span class="sc-type">TEXT</span></div>
+        <div class="sc-row"><span class="sc-col">occurred_at</span><span class="sc-type">TIMESTAMP NN</span></div>
+        <div class="sc-note">Append-only. Never update or delete rows. Indexes: (customer_id, occurred_at DESC), (statement_id)</div>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:4px;">
+      <h4>Status lifecycle</h4>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px;">
+        <span class="pill p-blue">REQUESTED</span>
+        <span style="color:var(--border); font-size:18px;">→</span>
+        <span class="pill p-yellow">GENERATING</span>
+        <span style="color:var(--border); font-size:18px;">→</span>
+        <span class="pill p-green">AVAILABLE</span>
+        <span style="color:var(--border); font-size:18px;">→</span>
+        <span class="pill p-teal">DELIVERED</span>
+        <span style="color:var(--muted); margin:0 4px; font-size:13px;">or</span>
+        <span class="pill p-red">FAILED</span>
+        <span style="color:var(--muted); margin:0 4px; font-size:13px;">or (over time)</span>
+        <span class="pill p-dark">EXPIRED</span>
+      </div>
+      <div style="margin-top:14px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+        <div style="font-size:12px; color:var(--muted);"><span class="pill p-blue" style="margin-right:6px;">REQUESTED</span>API accepted the request, Kafka job published.</div>
+        <div style="font-size:12px; color:var(--muted);"><span class="pill p-yellow" style="margin-right:6px;">GENERATING</span>PDF worker has picked up the job.</div>
+        <div style="font-size:12px; color:var(--muted);"><span class="pill p-green" style="margin-right:6px;">AVAILABLE</span>PDF in object storage, download tokens can now be issued.</div>
+        <div style="font-size:12px; color:var(--muted);"><span class="pill p-teal" style="margin-right:6px;">DELIVERED</span>Link sent to customer via email or SMS.</div>
+        <div style="font-size:12px; color:var(--muted);"><span class="pill p-red" style="margin-right:6px;">FAILED</span>PDF generation or upload failed. Requires retry or investigation.</div>
+        <div style="font-size:12px; color:var(--muted);"><span class="pill p-dark" style="margin-right:6px;">EXPIRED</span>Past the retention window. File may have been archived.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 6. REST API ════════════════════════════════ -->
+  <section>
+    <div class="section-label">6 — REST API Design</div>
+
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th><th>Path</th><th>Auth</th><th>What it does</th><th>Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill p-blue">POST</span></td>
+            <td><code>/api/v1/statements</code></td>
+            <td><span class="pill p-orange">Write role</span></td>
+            <td>Request statement generation for a customer and date range. Body must include an <code>idempotencyKey</code> so retries don't create duplicates. Publishes an async job and returns immediately with status <code>REQUESTED</code>.</td>
+            <td>201 — statement summary</td>
+          </tr>
+          <tr>
+            <td><span class="pill p-green">GET</span></td>
+            <td><code>/api/v1/statements</code></td>
+            <td><span class="pill p-teal">Read role</span></td>
+            <td>Paginated list of statement requests. Filterable by <code>customerId</code> and <code>status</code>.</td>
+            <td>200 — paginated list</td>
+          </tr>
+          <tr>
+            <td><span class="pill p-green">GET</span></td>
+            <td><code>/api/v1/statements/{id}</code></td>
+            <td><span class="pill p-teal">Read role</span></td>
+            <td>Fetch a single statement's full detail including current status.</td>
+            <td>200 — statement detail</td>
+          </tr>
+          <tr>
+            <td><span class="pill p-blue">POST</span></td>
+            <td><code>/api/v1/statements/{id}/download-link</code></td>
+            <td><span class="pill p-teal">Read role</span></td>
+            <td>Issue a secure download token for a statement the caller owns. Verifies the statement is in <code>AVAILABLE</code> status and that the caller's identity matches the <code>customerId</code> on the statement. Returns a URL and a TTL.</td>
+            <td>200 — <code>{ url, expiresInSeconds }</code></td>
+          </tr>
+          <tr>
+            <td><span class="pill p-green">GET</span></td>
+            <td><code>/api/v1/statements/download</code></td>
+            <td><em style="color:var(--muted);">Token = credential. No JWT required.</em></td>
+            <td>Redeem a download token. Query param: <code>?token=…</code>. Validates hash, expiry, and single-use. Streams the PDF. Designed for direct browser navigation — the customer just clicks the link.</td>
+            <td>200 — PDF stream<br/>410 — expired / used<br/>404 — unknown</td>
+          </tr>
+          <tr>
+            <td><span class="pill p-green">GET</span></td>
+            <td><code>/api/v1/statements/{id}/audit</code></td>
+            <td><span class="pill p-orange">Write role</span></td>
+            <td>Full immutable audit trail for a statement. For compliance and back-office investigation.</td>
+            <td>200 — audit event list</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-grid">
+      <div class="callout c-blue" style="border-radius:8px;">
+        <strong>Idempotency on POST /statements:</strong> the caller supplies an <code>idempotencyKey</code> (e.g. a UUID generated client-side). If the same key arrives twice, return the existing record rather than creating a duplicate. Store it with a <code>UNIQUE</code> constraint — the database enforces it even under concurrent load.
+      </div>
+      <div class="callout c-purple" style="border-radius:8px;">
+        <strong>Ownership enforcement:</strong> before issuing a download token, the service must verify that the authenticated caller is the customer on the statement — not just that they have the <code>Read</code> role. A back-office user with the <code>Write</code> role can bypass this check for support purposes.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 7. ASYNC EVENTS ═══════════════════════════ -->
+  <section>
+    <div class="section-label">7 — Async Event Design</div>
+
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>Event</th><th>Published by</th><th>Consumed by</th><th>Key fields</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>statement.requested</code></td>
+            <td>Statement API (POST handler)</td>
+            <td>PDF Generator Worker</td>
+            <td><code>statementId</code>, <code>idempotencyKey</code>, <code>customerId</code>, <code>accountNumber</code>, <code>periodFrom</code>, <code>periodTo</code></td>
+          </tr>
+          <tr>
+            <td><code>statement.generated</code></td>
+            <td>PDF Generator Worker</td>
+            <td>Statement API (updates status to AVAILABLE), Notification Service</td>
+            <td><code>statementId</code>, <code>customerId</code>, <code>storageKey</code>, <code>fileSizeBytes</code>, <code>generatedAt</code></td>
+          </tr>
+          <tr>
+            <td><code>statement.delivered</code></td>
+            <td>Notification Service</td>
+            <td>Statement API (updates status to DELIVERED), Audit logger</td>
+            <td><code>statementId</code>, <code>customerId</code>, <code>channel</code> (EMAIL / SMS / PORTAL), <code>deliveredAt</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout c-yellow" style="border-radius:8px; margin-top:4px;">
+      <strong>Idempotency in the PDF worker:</strong> the queue guarantees at-least-once delivery, which means the worker may receive the same event twice. Before generating, the worker must check whether the PDF already exists in object storage (by looking up the <code>statementId</code> or checking the <code>statement_requests.status</code>). If it does, skip generation and re-publish the <code>statement.generated</code> event.
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 8. SECURITY SUMMARY ═══════════════════════ -->
+  <section>
+    <div class="section-label">8 — Security Controls</div>
+
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>Threat</th><th>Control</th><th>How it works</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Unauthenticated API access</td>
+            <td><span class="pill p-blue">JWT validation</span></td>
+            <td>Every endpoint (except <code>/download</code>) requires a valid JWT from the IdP. Expired or tampered tokens are rejected.</td>
+          </tr>
+          <tr>
+            <td>Customer A reads Customer B's statement</td>
+            <td><span class="pill p-purple">Ownership check</span></td>
+            <td>Before issuing any token, the service compares the authenticated user's ID to the <code>customer_id</code> on the statement. Mismatch → 403 Forbidden.</td>
+          </tr>
+          <tr>
+            <td>Brute-forcing a download token</td>
+            <td><span class="pill p-teal">256-bit random token</span></td>
+            <td>32 bytes from a CSPRNG. 2²⁵⁶ possible values. Statistically impossible to guess.</td>
+          </tr>
+          <tr>
+            <td>Intercepted token reused</td>
+            <td><span class="pill p-orange">Single-use enforcement</span></td>
+            <td>Atomic database transaction: mark <code>used = true</code> before streaming. A second request for the same token gets 410 Gone.</td>
+          </tr>
+          <tr>
+            <td>Stale or forwarded link</td>
+            <td><span class="pill p-red">15-minute TTL</span></td>
+            <td>Hard expiry stored as an absolute timestamp. No renewal. Expired tokens return 410, not 404.</td>
+          </tr>
+          <tr>
+            <td>Database breach exposes tokens</td>
+            <td><span class="pill p-green">Hash-only storage</span></td>
+            <td>Only <code>SHA-256(rawToken)</code> is persisted. SHA-256 is a one-way function — the raw token cannot be recovered from the hash.</td>
+          </tr>
+          <tr>
+            <td>Direct access to stored files</td>
+            <td><span class="pill p-blue">Private object storage</span></td>
+            <td>Bucket has no public access policy. Storage keys are opaque UUIDs. Customers never receive a storage URL — only the service-issued token URL.</td>
+          </tr>
+          <tr>
+            <td>Credentials in source code</td>
+            <td><span class="pill p-purple">Secrets manager</span></td>
+            <td>All credentials (DB password, storage access keys) are read from a secrets manager at startup — never hardcoded or in config files committed to version control.</td>
+          </tr>
+          <tr>
+            <td>Token hoarding attack</td>
+            <td><span class="pill p-teal">Active token limit</span></td>
+            <td>Max 3 active tokens per statement. New issuance revokes all previous ones. Prevents accumulating tokens to extend the access window.</td>
+          </tr>
+          <tr>
+            <td>No forensic trail after an incident</td>
+            <td><span class="pill p-orange">Immutable audit log</span></td>
+            <td>Every event (token issued, download attempt, expiry) is appended to <code>audit_log</code> with timestamp and client IP. The log is never updated or deleted.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 9. TECHNOLOGY CHOICES ═════════════════════ -->
+  <section>
+    <div class="section-label">9 — Technology Recommendations</div>
+
+    <div class="callout c-blue" style="border-radius:8px; margin-bottom:8px;">
+      These are <strong>recommendations</strong>, not requirements. The architecture above works with any equivalent technology. Pick what your team knows.
+    </div>
+
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Recommended choice</th><th>Alternatives</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Backend framework</td>
+            <td>Spring Boot 3 (Java 21) or FastAPI (Python) or Express (Node.js)</td>
+            <td>Quarkus, Micronaut, NestJS, Rails, Laravel</td>
+            <td>All support JWT validation, REST, and async processing. Pick the language your team writes.</td>
+          </tr>
+          <tr>
+            <td>Database</td>
+            <td><strong style="color:#fff;">PostgreSQL</strong></td>
+            <td>MySQL, MariaDB, CockroachDB</td>
+            <td>Strong ACID guarantees matter here — the single-use token enforcement depends on transactional correctness. Avoid NoSQL for the token table.</td>
+          </tr>
+          <tr>
+            <td>Object storage</td>
+            <td><strong style="color:#fff;">AWS S3</strong></td>
+            <td>Google Cloud Storage, Azure Blob, MinIO (self-hosted)</td>
+            <td>S3 is the reference implementation. MinIO is S3-compatible and free for local development.</td>
+          </tr>
+          <tr>
+            <td>Message queue</td>
+            <td><strong style="color:#fff;">Apache Kafka</strong> or <strong style="color:#fff;">AWS SQS</strong></td>
+            <td>RabbitMQ, Azure Service Bus, Google Pub/Sub</td>
+            <td>Any durable queue works. Kafka if you need replay / event streaming. SQS if you're already on AWS. RabbitMQ for simplicity.</td>
+          </tr>
+          <tr>
+            <td>Identity provider</td>
+            <td><strong style="color:#fff;">Keycloak</strong> (self-hosted) or <strong style="color:#fff;">Auth0</strong> (managed)</td>
+            <td>AWS Cognito, Azure AD B2C, Okta</td>
+            <td>Any OAuth 2.0 / OIDC provider works. Keycloak is free and self-hostable; Auth0 is easiest to get started with.</td>
+          </tr>
+          <tr>
+            <td>PDF generation</td>
+            <td><strong style="color:#fff;">iText 7</strong> (Java) or <strong style="color:#fff;">WeasyPrint</strong> (Python) or <strong style="color:#fff;">Puppeteer</strong> (Node)</td>
+            <td>Apache PDFBox, JasperReports, wkhtmltopdf</td>
+            <td>Choose based on your backend language. Puppeteer renders HTML → PDF (easiest templating); iText gives more control.</td>
+          </tr>
+          <tr>
+            <td>Schema migrations</td>
+            <td><strong style="color:#fff;">Flyway</strong> or <strong style="color:#fff;">Liquibase</strong></td>
+            <td>Alembic (Python), Prisma Migrate (Node), ActiveRecord (Rails)</td>
+            <td>Every schema change must be tracked in version control as a numbered migration file. Never modify the DB by hand in production.</td>
+          </tr>
+          <tr>
+            <td>Secrets management</td>
+            <td><strong style="color:#fff;">HashiCorp Vault</strong> or <strong style="color:#fff;">AWS Secrets Manager</strong></td>
+            <td>Azure Key Vault, environment variables (dev only), Doppler</td>
+            <td>Never store credentials in config files or environment variables in production. Use a proper secrets manager.</td>
+          </tr>
+          <tr>
+            <td>Local development</td>
+            <td><strong style="color:#fff;">Docker Compose</strong> with MinIO + PostgreSQL + Kafka (or Redpanda)</td>
+            <td>Podman Compose, Testcontainers</td>
+            <td>MinIO emulates S3 locally. Redpanda is a fast Kafka-compatible alternative for local dev. Docker Compose means any developer can spin up the full stack with one command.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 10. WHAT NOT TO DO ═══════════════════════ -->
+  <section>
+    <div class="section-label">10 — Common Mistakes to Avoid</div>
+
+    <div class="card-grid">
+      <div class="card-sm">
+        <h4 style="color:var(--red);">Serving PDFs directly from object storage</h4>
+        <p>Making the S3 bucket public (or using long-lived presigned URLs) means anyone who gets hold of the URL can access the file indefinitely. Always proxy through your service so you can enforce expiry and single-use.</p>
+      </div>
+      <div class="card-sm">
+        <h4 style="color:var(--red);">Using a UUID or sequential ID as the download token</h4>
+        <p>UUIDs are guessable if an attacker knows the format. Sequential IDs are trivially enumerable. Use a cryptographically random value — the difference between a guessable token and an unguessable one is the difference between security and the appearance of security.</p>
+      </div>
+      <div class="card-sm">
+        <h4 style="color:var(--red);">Checking expiry without enforcing single-use</h4>
+        <p>A token that expires in 15 minutes but can be used unlimited times within that window is a much weaker control. If someone intercepts the link (browser history, email forward, Slack message), they can download the file. Single-use + expiry together close both attack vectors.</p>
+      </div>
+      <div class="card-sm">
+        <h4 style="color:var(--red);">Generating PDFs synchronously in the API request</h4>
+        <p>PDF generation can take seconds, especially for long statement periods. Blocking the HTTP request for that long degrades user experience and makes the service fragile under load. Always generate asynchronously and notify the customer when the file is ready.</p>
+      </div>
+      <div class="card-sm">
+        <h4 style="color:var(--red);">No idempotency key on generation requests</h4>
+        <p>Without an idempotency key, a retry (from a network blip, a double-click, or a scheduler bug) creates a duplicate statement. The client must supply a unique key per logical request, and the server must deduplicate against it.</p>
+      </div>
+      <div class="card-sm">
+        <h4 style="color:var(--red);">Skipping the audit log</h4>
+        <p>Financial statements are regulated documents. Without an audit trail, you cannot answer "did this customer download their statement?" or "was this file accessed without authorisation?". The audit log is not optional — it is the evidence record for disputes and compliance checks.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Secure File Statement Delivery · Generic Solution Architecture · June 2026
+</footer>
+
+</body>
+</html>
